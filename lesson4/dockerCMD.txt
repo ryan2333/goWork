@@ -1,0 +1,29 @@
+#通过dockerfile 生成docker镜像; .表示dockerfile路径
+docker build -t registry_url/namespace/csphere/centos:7.1 .
+
+#查看镜像
+docker images
+
+[root@op-cobbler centos7]# docker images
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+csphere/centos7.1   latest              1eba4f2604dc        10 seconds ago      604.1 MB
+docker.io/centos    centos7.1.1503      285396d0a019        10 months ago       212.1 MB
+
+#查看docker run 参数
+[root@op-cobbler centos7]#docker help run
+	-it	以交互式模式启动容器
+	-d 	将容器启动在后端
+	-p 2222:22	指定宿主机与容器端口的映射关系
+	-P 22	指定容器需要开放的端口
+	-name 容器名称
+
+#使用docker image创建容器
+docker run -d -p 2222:22 --name base csphere/centos7.1
+
+#进入创建的后台容器
+docker exec -it base /bin/bash
+
+#查看容器创建结果
+[root@op-cobbler centos7]# docker ps -a
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                  NAMES
+6526ca031da4        csphere/centos7.1   "/usr/bin/supervisord"   37 seconds ago      Up 35 seconds       0.0.0.0:2222->22/tcp   base
