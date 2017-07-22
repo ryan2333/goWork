@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -68,17 +69,17 @@ func fetch(url string) ([]string, error) {
 	return urls, nil
 }
 
-func downLoadImgs(urls []string, dir string) error {
-	for _, link := range urls {
+func downLoadImgs(ch chan string, wg *sync.WaitGroup, dir string) error {
+	for link := range ch {
 		resp, err := http.Get(link)
 		if err != nil {
 			return err
 		}
 		defer resp.Body.Close()
 		//	f, err := os.OpenFile(dir+"/"+filename, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
-		if err != nil {
-			return err
-		}
+		// if err != nil {
+		// 	return err
+		// }
 
 		if resp.StatusCode != http.StatusOK {
 			return errors.New(resp.Status)
@@ -94,6 +95,7 @@ func downLoadImgs(urls []string, dir string) error {
 		f.Close()
 
 	}
+	wg.Done()
 	return nil
 }
 
@@ -147,12 +149,22 @@ func main() {
 	// 	// continue
 	// }
 	// fmt.Println(tmpdir)
-	// defer os.RemoveAll(tmpdir)
+	fmt.Println(time.Now())
+	wg := new(sync.WaitGroup)
+	wg.Add(5)
+	downUrlCh := make(chan string)
+	// err = downLoadImgs(links, "/Users/yhzhao/Downloads/pics")
 	dir := "/Users/yhzhao/Downloads/pics"
 	// dir := "G:\\Picture\\pics"
+	for i := 0; i < 5; i++ {
+		go downLoadImgs(downUrlCh, wg, dir)
+	}
+	for _, link := range links {
+		downUrlCh <- link
+	}
+	close(downUrlCh)
 	fmt.Println(time.Now())
-	err = downLoadImgs(links, dir)
-	fmt.Println(time.Now())
+
 	tr, err := os.Create("img.tar.gz")
 	// dir := "G:\\Picture\\pics"
 	// tr, err := os.Create(os.Args[1])
@@ -162,6 +174,7 @@ func main() {
 	}
 	defer tr.Close()
 	// makeTar("/Users/yhzhao/Downloads/pics", tr)
-	// makeTar(dir, tr)
 	makeTar(dir, tr)
+	// defer os.RemoveAll(tmpdir)
+
 }

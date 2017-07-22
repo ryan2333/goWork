@@ -42,24 +42,18 @@ func (a *Account) Left() int {
 
 func main() {
 	var account Account
-	//定义channel
-	c := make(chan int, 2) //使用channel同步阻塞
+	//定义waitgroup
+	wg := new(sync.WaitGroup)
+	wg.Add(2)
 	account.GetGongZi(10)
 	go func() {
 		account.GiveWife(6)
-		c <- 0
+		wg.Done()
 	}()
 	go func() {
 		account.Buy(5)
-		c <- 0
+		wg.Done()
 	}()
-	cnt := 0
-	for {
-		<-c
-		cnt++
-		if cnt == 2 {
-			break
-		}
-	}
+	wg.Wait()
 	fmt.Println(account.Left())
 }
