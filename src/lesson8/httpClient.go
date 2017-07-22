@@ -1,16 +1,22 @@
 package main
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	//	"github.com/PuerkitoBio/goquery"
 )
 
 func cleanUrls(u string, urls []string) []string {
@@ -39,20 +45,20 @@ func cleanUrls(u string, urls []string) []string {
 
 func fetch(url string) ([]string, error) {
 	var urls []string
-	resp, err := http.Get(url)
+	resp, err := http.Get(url) //访问url
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK { //获取返回code
 		return nil, errors.New(resp.Status)
 	}
 	//	io.Copy(os.Stdout, resp.Body)
-	doc, err := goquery.NewDocumentFromResponse(resp)
+	doc, err := goquery.NewDocumentFromResponse(resp) //goquery生成文档
 	if err != nil {
 		return nil, err
 	}
-	doc.Find("img").Each(func(i int, s *goquery.Selection) {
+	doc.Find("img").Each(func(i int, s *goquery.Selection) { //查找所有img标签的src属性
 		link, ok := s.Attr("src")
 		if ok {
 			urls = append(urls, link)
@@ -61,6 +67,67 @@ func fetch(url string) ([]string, error) {
 		}
 	})
 	return urls, nil
+}
+
+func downLoadImgs(urls []string, dir string) error {
+	for _, link := range urls {
+		resp, err := http.Get(link)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		//	f, err := os.OpenFile(dir+"/"+filename, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
+		if err != nil {
+			return err
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return errors.New(resp.Status)
+		}
+		filename := path.Base(link)
+		f, err := os.Create(dir + "/" + filename) //创建文件
+		// data, err := ioutil.ReadAll(resp.Body)
+		// f.Write(data)
+		if err != nil {
+			return err
+		}
+		io.Copy(f, resp.Body) //将resp.body内容写入文件
+		f.Close()
+
+	}
+	return nil
+}
+
+func makeTar(dir string, w io.Writer) error {
+	compress := gzip.NewWriter(w)
+	defer compress.Close()
+	tr := tar.NewWriter(compress)
+	defer tr.Close()
+	filepath.Walk(dir, func(name string, info os.FileInfo, err error) error {
+		//写入tar header
+		//以读取方式打开文件
+		//判断目录和文件，如果是文件
+		//把文件内容写入到body
+		header, err := tar.FileInfoHeader(info, "") //读取头文件信息
+		if info.IsDir() {
+
+		}
+		if err != nil {
+			return err
+		}
+		header.Name = name      //替换Name，带全路径的
+		tr.WriteHeader(header)  //写入头文件信息
+		f, err := os.Open(name) //打开文件
+		if err != nil {
+			return nil
+		}
+		io.Copy(tr, f) //写入文件内容
+
+		f.Close()
+
+		return nil
+	})
+	return nil
 }
 
 func main() {
@@ -74,5 +141,25 @@ func main() {
 	for _, link := range links {
 		fmt.Println(link)
 	}
+	tmpdir, err := ioutil.TempDir("", "spider") //创建临时目录
+	if err != nil {
+		fmt.Println(err)
+		// continue
+	}
+	fmt.Println(tmpdir)
+	defer os.RemoveAll(tmpdir)
+	fmt.Println(time.Now())
+	err = downLoadImgs(links, "/Users/yhzhao/Downloads/pics")
+	fmt.Println(time.Now())
+	tr, err := os.Create("img.tar.gz")
+	dir := "/Users/yhzhao/Downloads/pics"
+	// tr, err := os.Create(os.Args[1])
+	// dir := os.Args[2]
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tr.Close()
+	// makeTar("/Users/yhzhao/Downloads/pics", tr)
+	makeTar(dir, tr)
 
 }
