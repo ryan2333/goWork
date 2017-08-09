@@ -100,6 +100,7 @@ func downLoadImgs(ch chan string, wg *sync.WaitGroup, dir string) error {
 }
 
 func makeTar(dir string, w io.Writer) error {
+	basedir := filepath.Base(dir)
 	compress := gzip.NewWriter(w)
 	defer compress.Close()
 	tr := tar.NewWriter(compress)
@@ -110,17 +111,23 @@ func makeTar(dir string, w io.Writer) error {
 		//判断目录和文件，如果是文件
 		//把文件内容写入到body
 		header, err := tar.FileInfoHeader(info, "") //读取头文件信息
-		if info.IsDir() {
 
-		}
 		if err != nil {
 			return err
 		}
-		header.Name = name      //替换Name，带全路径的
-		tr.WriteHeader(header)  //写入头文件信息
+		p, _ := filepath.Rel(dir, name)
+		// header.Name = name      //替换Name，带全路径的
+		header.Name = filepath.Join(basedir, p)
+		err = tr.WriteHeader(header) //写入头文件信息
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+
+		}
 		f, err := os.Open(name) //打开文件
 		if err != nil {
-			return nil
+			return err
 		}
 		io.Copy(tr, f) //写入文件内容
 
@@ -132,6 +139,7 @@ func makeTar(dir string, w io.Writer) error {
 }
 
 func main() {
+	fmt.Println(time.Now())
 	// link := "http://daily.zhihu.com/"
 	// link := os.Args[1]
 	link := "http://pic.netbian.com/4kmingxing/index.html"
@@ -149,12 +157,13 @@ func main() {
 	// 	// continue
 	// }
 	// fmt.Println(tmpdir)
-	fmt.Println(time.Now())
+
 	wg := new(sync.WaitGroup)
 	wg.Add(5)
 	downUrlCh := make(chan string)
 	// err = downLoadImgs(links, "/Users/yhzhao/Downloads/pics")
-	dir := "/Users/yhzhao/Downloads/pics"
+	dir := os.Args[2]
+	// dir := "/Users/yhzhao/Downloads/pics"
 	// dir := "G:\\Picture\\pics"
 	for i := 0; i < 5; i++ {
 		go downLoadImgs(downUrlCh, wg, dir)
@@ -163,12 +172,11 @@ func main() {
 		downUrlCh <- link
 	}
 	close(downUrlCh)
-	fmt.Println(time.Now())
 
 	tr, err := os.Create("img.tar.gz")
 	// dir := "G:\\Picture\\pics"
 	// tr, err := os.Create(os.Args[1])
-	// dir := os.Args[2]
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -176,5 +184,6 @@ func main() {
 	// makeTar("/Users/yhzhao/Downloads/pics", tr)
 	makeTar(dir, tr)
 	// defer os.RemoveAll(tmpdir)
+	fmt.Println(time.Now())
 
 }
