@@ -2,12 +2,19 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
+)
+
+var (
+	root = flag.String("r", "./", "ftp root director")
+	// 用于定义一个指定目录,便于ftp的安全
 )
 
 func handConn(conn net.Conn) { //conn类型为net.conn
@@ -27,7 +34,6 @@ func handConn(conn net.Conn) { //conn类型为net.conn
 		conn.Write([]byte("bad input"))
 		return
 	}
-	fmt.Println(cmdfn[0], cmdfn[1])
 
 	switch cmdfn[0] {
 	case "GET":
@@ -35,40 +41,55 @@ func handConn(conn net.Conn) { //conn类型为net.conn
 		//读取内容
 		//发送内容
 		//关闭连接和文件
-		f, err := os.Open(cmdfn[1])
+		f, err := os.Open(*root + cmdfn[1])
+		log.Print(*root)
 		if err != nil && err != io.EOF {
 			log.Print(err)
 			return
 		}
 		defer f.Close()
-		ct := bufio.NewReader(f)
-		for {
-			line, err := ct.ReadString('\n')
-			if err == io.EOF {
-				break
-			}
-			conn.Write([]byte(line))
-		}
+		// ct := bufio.NewReader(f)
+		// for {
+		// 	line, err := ct.ReadString('\n')
+		// 	if err == io.EOF {
+		// 		break
+		// 	}
+		// 	conn.Write([]byte(line))
+		// }
+		io.Copy(conn, f)
 	case "STORE":
 		// 从r读取文件内容直到err为io.EOF
 		// 创建文件
 		// 向文件写入内容
 		// 往conn写入ok
 		// 关闭连接和文件
-		f, _ := os.Create(cmdfn[1])
+		// os.MkdirAll(filepath.Dir(cmdfn[1]), 0755)
+		fmt.Println(cmdfn[1])
+		f, _ := os.Create(*root + filepath.Base(cmdfn[1]))
 		if err != nil {
 			log.Print(err)
 			return
 		}
-		for {
-			line, err := r.ReadString('\n')
-			if err == io.EOF {
-				break
-			}
-			f.WriteString(line)
-		}
-		conn.Write([]byte("OK"))
+		// for {
+		// 	line, err := r.ReadString('\n')
+		// 	if err == io.EOF {
+		// 		break
+		// 	}
+		// 	f.WriteString(line)
+		// }
+		io.Copy(f, r)
 		f.Close()
+		conn.Write([]byte("OK"))
+	case "LS":
+		f, err := os.Open(*root + cmdfn[1])
+		if err != nil {
+			log.Print(err)
+		}
+		defer f.Close()
+		infos, _ := f.Readdir(-1)
+		for _, info := range infos {
+			conn.Write([]byte(fmt.Sprintf("%v %v \n", info.Name(), info.Size())))
+		}
 	default:
 		fmt.Println("default")
 		return
