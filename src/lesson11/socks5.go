@@ -89,7 +89,7 @@ func readAddr(r *bufio.Reader) (addr string, err error) {
 
 	//读取n个字节得到域名，n根据上一步得到的结果来决定
 	buf := make([]byte, addlen)
-	io.ReadFull(r, addr)
+	io.ReadFull(r, buf)
 	log.Printf("addr buf: %s\n", buf)
 
 	//读取端口
@@ -98,7 +98,7 @@ func readAddr(r *bufio.Reader) (addr string, err error) {
 	binary.Read(r, binary.BigEndian, &port)
 	log.Printf("addr port: %d\n", port)
 
-	return fmt.Sprintf("%s:%d", addr, port), nil
+	return fmt.Sprintf("%s:%d", buf, port), nil
 }
 
 func handleConn(conn net.Conn) {
@@ -112,7 +112,7 @@ func handleConn(conn net.Conn) {
 }
 
 func proxy(conn net.Conn, address string) {
-
+	log.Print(address)
 	toDst, err := net.Dial("tcp", address)
 	if err != nil {
 		log.Fatal(err)
@@ -141,7 +141,7 @@ func main() {
 	// flag.Parse()
 	// //建立listen
 	// addr := ":7777"
-	listener, err := net.Listen("tcp", ":7777")
+	listener, err := net.Listen("tcp", ":7778")
 	if err != nil {
 		log.Fatal(err)
 	}

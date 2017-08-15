@@ -60,7 +60,7 @@ func (r *CryptoReader) Read(b []byte) (int, error) {
 }
 
 var (
-	target = flag.String("target", "www.baidu.com:80", "target host")
+	target = flag.String("target", "127.0.0.1:7778", "target host")
 )
 
 func handleConn(conn net.Conn) {
@@ -76,16 +76,16 @@ func handleConn(conn net.Conn) {
 	//go 从客户端到目标服务器的协程
 	go func() {
 		defer wg.Done()
-		w := NewCryptoWriter(remote, "123456")
-		io.Copy(w, conn)
+		r := NewCryptoReader(conn, "123456")
+		io.Copy(toDst, r)
 		toDst.Close()
 	}()
 
 	//go 从目标服务器发送到客户端的协程
 	go func() {
 		defer wg.Done()
-		r := NewCryptoReader(remote, "123456")
-		io.Copy(conn, toDst)
+		w := NewCryptoWriter(conn, "123456")
+		io.Copy(w, toDst)
 		conn.Close()
 	}()
 	//等待两个协程结束

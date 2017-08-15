@@ -1,22 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"crypto/md5"
 	"crypto/rc4"
+	"errors"
 	"flag"
 	"io"
 	"log"
 	"net"
 	"sync"
 )
-
-/*
-此文件对来自客户端的请求进行加密后发送到B端，并对来自B端的数据就行解密发送到客户端
-client----->A---加密----->B--解密---->socks
-client<--解密--A<------加密----B<-----socks
-
-
-*/
 
 type CryptoWriter struct {
 	w      io.Writer
@@ -68,8 +62,32 @@ func (r *CryptoReader) Read(b []byte) (int, error) {
 }
 
 var (
-	target = flag.String("target", "10.13.4.20:7777", "target host")
+	target = flag.String("target", "127.0.0.1:7778", "target host")
 )
+
+func handshake(r *bufio.Reader, conn net.Conn) error {
+	//获取客户端协议版本，1个字节，ReadByte表示读取1个字节
+	version, _ := r.ReadByte()
+	// version := mustReadByte(r)
+	log.Printf("version:%d\n", version)
+	if version != 5 {
+		return errors.New("bad version")
+	}
+	//读取认证方式长度，1个字节
+	nmethods, _ := r.ReadByte()
+	// nmethods := mustReadByte(r)
+	log.Printf("nmethods:%d\n", nmethods)
+
+	//读取认证方式，根据认证方式长度，创建对应的BUF，当BUF读满则完整读出认证方式
+	buf := make([]byte, nmethods)
+	io.ReadFull(r, buf) //从r中读取内容，直到buf填充满
+	log.Printf("buf: %v", buf)
+
+	//给客户端返回服务端支持的认证方式及长度
+	resp := []byte{5, 0}
+	conn.Write(resp)
+	return nil
+}
 
 func handleConn(conn net.Conn) {
 	//建立到目标服务器的连接
@@ -84,16 +102,16 @@ func handleConn(conn net.Conn) {
 	//go 从客户端到目标服务器的协程
 	go func() {
 		defer wg.Done()
-		w := NewCryptoWriter(toDst, "123456")
-		io.Copy(w, conn)
+		r := NewCryptoReader(conn, "123456")
+		io.Copy(toDst, r)
 		toDst.Close()
 	}()
 
 	//go 从目标服务器发送到客户端的协程
 	go func() {
 		defer wg.Done()
-		r := NewCryptoReader(toDst, "123456")
-		io.Copy(conn, r)
+		w := NewCryptoWriter(conn, "123456")
+		io.Copy(w, toDst)
 		conn.Close()
 	}()
 	//等待两个协程结束
