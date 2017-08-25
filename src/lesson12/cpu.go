@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/load"
+	"github.com/shirou/gopsutil/mem"
 )
 
 func main() {
@@ -19,4 +21,16 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(loadavg)
+
+	memstat, err := mem.VirtualMemory()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(memstat.UsedPercent)
+
+	diskstat, err := disk.Usage("/")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(diskstat.UsedPercent)
 }
