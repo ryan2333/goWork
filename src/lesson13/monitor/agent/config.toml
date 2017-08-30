@@ -1,0 +1,21 @@
+TransAddr = "59.110.12.72:6000"
+[sender]
+trans_addr = "59.110.12.72:6000"
+flush_interval = "5"
+max_sleep_time = "30"
+
+[[UserScript]]
+Path = "/Users/yhzhao/test.py"
+Step = "10s"
+
+[[UserScript]]
+Path = "/Users/yhzhao/pp.py"
+Step = "8s"
+
+[[user_script]]
+path = "/Users/yhzhao/test.py"
+step = "10s"
+
+[[user_script]]
+path = "/Users/yhzhao/pp.py"
+step = "8s"
